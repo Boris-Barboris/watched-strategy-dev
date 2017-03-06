@@ -1,2 +1,2 @@
-pip install matplotlib numpy
+pip install matplotlib numpy   
 python plottest.py
