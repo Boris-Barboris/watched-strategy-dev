@@ -52,7 +52,7 @@ class Instance(object):
         self.avg_cpu_util = 0.0
 
     def cpu_metric(self, mname = 'vcpus'):
-        if mname == 'vpus':
+        if mname == 'vcpus':
             return self.vcpus
         else:
             return self.vcpus * self.avg_cpu_util

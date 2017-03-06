@@ -20,7 +20,7 @@ for i in range(host_count):
             cpus = 2 ** (3 + cpu_powers[i]),
             ram = 2 ** (12 + memory_powers[i])))
 
-vm_count = 20
+vm_count = 16
 
 vm_host_map = np.random.randint(host_count, size=vm_count)
 

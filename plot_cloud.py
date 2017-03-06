@@ -3,18 +3,18 @@ import matplotlib.patches as patches
 
 _colors = ('blue', 'yellow', 'cyan')
 
-def print_servers(servers):
+def print_servers(servers, cpu_metric='vcpus'):
     fig = plt.figure()
 
     for i in range(len(servers)):
         host_subplot = fig.add_subplot(100 + 10 * len(servers) + i + 1)
         host_subplot.set_title(servers[i].name)
-        draw_server(host_subplot, servers[i])
+        draw_server(host_subplot, servers[i], cpu_metric)
 
     fig.subplots_adjust(top=0.85, left=0.05, right=0.97)
     plt.show()
 
-def draw_server(sp, server, cpu_metric='vpus'):
+def draw_server(sp, server, cpu_metric='vcpus'):
     # at last, draw rectangle that represents capabilities
     sp.add_patch(
         patches.Rectangle((0, 0), server.ram, server.cpus,
