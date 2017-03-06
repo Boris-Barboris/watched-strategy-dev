@@ -41,9 +41,10 @@ class AvailabilityZone(object):
 
 
 class Instance(object):
-    def __init__(self, vcpus, vram, metadata=None):
+    def __init__(self, name, vcpus, vram, metadata=None):
         self.vcpus = vcpus
         self.vram = vram
+        self.name = name
         if metadata:
             self.metadata = metadata
         else:

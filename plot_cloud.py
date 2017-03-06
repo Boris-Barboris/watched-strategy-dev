@@ -30,6 +30,7 @@ def draw_server(sp, server, cpu_metric='vpus'):
         sp.add_patch(
             patches.Rectangle(offset, vm.vram, vcpu,
                         color=color))
+        sp.annotate(vm.name, offset, color='red')
         offset = (offset[0] + vm.vram, offset[1] + vcpu)
     sp.set_xlim([0,max_ram])
     sp.set_ylim([0,max_cpu])

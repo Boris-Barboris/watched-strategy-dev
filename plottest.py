@@ -29,6 +29,7 @@ vcpu_powers = np.random.randint(4, size=vm_count)
 vmemory_powers = np.random.randint(4, size=vm_count)
 for i in range(vm_count):
     vm = Instance(
+            name = str(i),
             vcpus = 2 ** (1 + vcpu_powers[i]),
             vram = 2 ** (8 + vmemory_powers[i]))
     vms.append(vm)
