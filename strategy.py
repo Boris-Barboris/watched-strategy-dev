@@ -64,16 +64,16 @@ class ConsolidationGoal(object):
 class ConsolidationStrategy(SchedulerAwareStrategy):
     def __init__(self, active_filters, **kwargs):
         SchedulerAwareStrategy.__init__(self, active_filters)
-        self.cpu_ratio = kwargs.get('cpu_max_util', 0.8)
-        self.ram_ratio = kwargs.get('ram_max_util', 1.5)
+        self.cpu_allocation_ratio = kwargs.get('cpu_max_util', 0.8)
+        self.ram_allocation_ratio = kwargs.get('ram_max_util', 1.5)
 
     def execute(self, cluster, goal):
         # we'll manipulate deep copy of our cluster
         result = copy.deepcopy(cluster)
         use_flavor = goal.data_source == 'flavor'
         # get sorted by load list of hosts
-        host_loads = self.get_host_loads(result, use_flavor)
-        sorted_loads = sorted(host_loads,
+        hosts_loads = self.get_hosts_loads(result, use_flavor)
+        sorted_loads = sorted(hosts_loads,
                               key=lambda host_load: host_load['load']['total'])
         print 'sorted hosts:'
         pp.pprint(sorted_loads)
@@ -81,41 +81,83 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
         # TODO: maybe we should offload vms from overloaded hosts here
 
         # not let's try to offload hosts starting from least loaded one
-        donour_i = 0
-        recipient_i = len(result)
-        while donour_i < recipient_i:
-            donour = sorted_loads[donour_i]['host']
-            recipient = sorted_loads[recipient_i]['host']
-
-
+        for donour_i in range(len(result) - 1):
+            for recipient_i in range(len(result) - 1, donour_i, -1):
+                donour = sorted_loads[donour_i]['host']
+                recipient = sorted_loads[recipient_i]['host']
+                candidates = []
+                for vm in donour.vms:
+                    if self.can_migrate(vm, donour, recipient, result, use_flavor):
+                        candidates.append(vm)
+                best_candidate = self.choose_best_candidate(candidates, donour,
+                    recipient, use_flavor)
+                print 'Chosen instance for migration: ' + repr(best_candidate)
+                if best_candidate:
+                    # preform migration
+                    self.migrate(best_candidate, donour, recipient)
+                    self.migrations.append(Migration(best_candidate, donour, recipient))
+                    # we need to update model
+                    hosts_loads = self.get_hosts_loads(result, use_flavor)
+                    sorted_loads = sorted(hosts_loads,
+                        key=lambda host_load: host_load['load']['total'])
         return result
 
-    def can_migrate(self, vm, host, cluster_state, use_flavor):
-        schedulers_ok = self.host_passes(vm, host, cluster_state)
+    def choose_best_candidate(self, candidates, source, dest, use_flavor):
+        # choose the best vm to migrate to dest
+        # at first let's choose vm that will make host utilization
+        # balanced cpu-ram wise
+        if len(candidates) == 0:
+            return None
+        resulting_loads = []
+        for vm in candidates:
+            self.migrate(vm, source, dest)
+            new_load = self.host_load(dest, use_flavor)
+            resulting_loads.append({
+                'vm': vm,
+                'unb': abs(new_load['cpu'] - new_load['ram'])
+                })
+            self.migrate(vm, dest, source)
+        sorted_results = sorted(resulting_loads,
+                                key=lambda host_load: host_load['unb'])
+        return sorted_results[0]['vm']
+
+
+    def can_migrate(self, vm, source, dest, cluster_state, use_flavor):
+        schedulers_ok = self.host_passes(vm, dest, cluster_state)
         if not schedulers_ok:
             return False
-        # now let's check our own policies: cpu and ram overbooking
-        # let's simulate migration
+        # now let's check our own, strategy policies: cpu and ram overbooking
+        self.migrate(vm, source, dest)
+        try:
+            host_util = self.host_load(dest, use_flavor)
+            if not use_flavor:
+                if host_util['cpu'] > self.cpu_allocation_ratio:
+                    return False
+            if host_util['ram'] > self.ram_allocation_ratio:
+                return False
+        finally:
+            self.migrate(vm, dest, source)      # rollback migration
+        return True
 
     def migrate(self, vm, source, dest):
         source.vms.remove(vm)
         dest.vms.add(vm)
 
-    def get_host_loads(self, cluster, use_flavor):
+    def get_hosts_loads(self, cluster, use_flavor):
         res = []
         for host in cluster:
             res.append({'host': host,
-                        'load': self.get_host_load(host, use_flavor)})
+                        'load': self.host_load(host, use_flavor)})
         return res
 
-    def get_host_load(self, host, use_flavor = True):
+    def host_load(self, host, use_flavor = True):
         # get area ratio
         if not use_flavor:
-            cpu_alloc_ratio = self.cpu_ratio
+            cpu_alloc_ratio = self.cpu_allocation_ratio
         else:
             cpu_alloc_ratio = None
         cpu_ratio = self.get_host_cpu_util(host, use_flavor, cpu_alloc_ratio)
-        ram_ratio = self.get_host_ram_util(host, self.ram_ratio)
+        ram_ratio = self.get_host_ram_util(host, self.ram_allocation_ratio)
         return {'total': cpu_ratio * ram_ratio,
                 'cpu': cpu_ratio,
                 'ram': ram_ratio}

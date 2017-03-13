@@ -12,10 +12,13 @@ class MetadataSimpleFilter(HostFilter):
 
     def host_passes(self, vm, host, cluster):
         if self.key in vm.metadata:
-            for ha in vm.aggregates:
+            matched = False
+            for ha in host.aggregates:
                 if self.key in ha.metadata:
-                    if vm.metadata[self.key] != host.metadata[self.key]:
-                        return False
+                    if vm.metadata[self.key] == ha.metadata[self.key]:
+                        matched = True
+            if not matched:
+                return False
         return True
 
 class RamFilter(HostFilter):

@@ -25,11 +25,11 @@ def case_simple1():
     filters = [MetadataSimpleFilter('ha'), RamFilter(), CpuFilter()]
     cluster = [server1, server2, server3]
     consol = strategy.ConsolidationStrategy(filters)
-    print 'Initial cluster state:'
+    print '=====Initial cluster state:'
     pp.pprint(cluster)
     result = consol.execute(cluster, strategy.ConsolidationGoal('flavor'))
-    print 'Resulting cluster state:'
+    print '=====Resulting cluster state:'
     pp.pprint(result)
-    print 'Migrations:'
+    print '=====Migrations:'
     pp.pprint(consol.migrations)
     print_servers2(cluster, result)
