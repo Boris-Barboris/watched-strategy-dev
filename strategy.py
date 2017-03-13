@@ -1,6 +1,7 @@
 import pprint
 import numpy as np
 import copy
+import operator
 
 from cloud_mocks import *
 
@@ -73,33 +74,41 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
         use_flavor = goal.data_source == 'flavor'
         # get sorted by load list of hosts
         hosts_loads = self.get_hosts_loads(result, use_flavor)
-        sorted_loads = sorted(hosts_loads,
-                              key=lambda host_load: host_load['load']['total'])
-        print 'sorted hosts:'
-        pp.pprint(sorted_loads)
+        sorted_loads = sorted(hosts_loads.items(), key=lambda hl: hl[1]['total'])
+        #print 'sorted hosts:'
+        #pp.pprint(sorted_loads)
 
         # TODO: maybe we should offload vms from overloaded hosts here
 
         # not let's try to offload hosts starting from least loaded one
+        donour_i = 0
+        recipient_i = len(result) - 1
         for donour_i in range(len(result) - 1):
             for recipient_i in range(len(result) - 1, donour_i, -1):
-                donour = sorted_loads[donour_i]['host']
-                recipient = sorted_loads[recipient_i]['host']
+                donour = sorted_loads[donour_i][0]
+                recipient = sorted_loads[recipient_i][0]
                 candidates = []
                 for vm in donour.vms:
+                    # TODO: cache filter outputs. Looks like N^3 complexity
                     if self.can_migrate(vm, donour, recipient, result, use_flavor):
                         candidates.append(vm)
                 best_candidate = self.choose_best_candidate(candidates, donour,
                     recipient, use_flavor)
-                print 'Chosen instance for migration: ' + repr(best_candidate)
+                #print 'Chosen instance for migration: ' + repr(best_candidate)
                 if best_candidate:
                     # preform migration
                     self.migrate(best_candidate, donour, recipient)
                     self.migrations.append(Migration(best_candidate, donour, recipient))
                     # we need to update model
+                    # TODO: we actually need to update only two hosts,
+                    # so full load rebuilding feels excessive
                     hosts_loads = self.get_hosts_loads(result, use_flavor)
-                    sorted_loads = sorted(hosts_loads,
-                        key=lambda host_load: host_load['load']['total'])
+                    sorted_loads = sorted(hosts_loads.items(),
+                                          key=lambda hl: hl[1]['total'])
+                    # reset counters
+                    # Probably we need more efficient solution
+                    donour_i = 0
+                    recipient_i = len(result) - 1
         return result
 
     def choose_best_candidate(self, candidates, source, dest, use_flavor):
@@ -108,18 +117,15 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
         # balanced cpu-ram wise
         if len(candidates) == 0:
             return None
-        resulting_loads = []
+        resulting_loads = {}
         for vm in candidates:
             self.migrate(vm, source, dest)
             new_load = self.host_load(dest, use_flavor)
-            resulting_loads.append({
-                'vm': vm,
-                'unb': abs(new_load['cpu'] - new_load['ram'])
-                })
+            resulting_loads[vm] = abs(new_load['cpu'] - new_load['ram'])
             self.migrate(vm, dest, source)
-        sorted_results = sorted(resulting_loads,
-                                key=lambda host_load: host_load['unb'])
-        return sorted_results[0]['vm']
+        sorted_results = sorted(resulting_loads.items(),
+                                key=operator.itemgetter(1))
+        return sorted_results[0][0]
 
 
     def can_migrate(self, vm, source, dest, cluster_state, use_flavor):
@@ -144,10 +150,9 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
         dest.vms.add(vm)
 
     def get_hosts_loads(self, cluster, use_flavor):
-        res = []
+        res = {}
         for host in cluster:
-            res.append({'host': host,
-                        'load': self.host_load(host, use_flavor)})
+            res[host] = self.host_load(host, use_flavor)
         return res
 
     def host_load(self, host, use_flavor = True):
