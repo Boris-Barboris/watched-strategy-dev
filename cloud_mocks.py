@@ -1,31 +1,39 @@
+from sets import Set
+
 class Server(object):
     def __init__(self, name, cpus, ram, metadata=None):
         self.name = name
         self.cpus = cpus
         self.ram = ram
-        if metadata:
-            self.metadata = metadata
-        else:
-            self.metadata = {}
-        self.vms = []
+        self.aggregates = Set()
+        self.vms = Set()
+
+    def get_metadata(self, key, aggregation = min, default = None):
+        vals = []
+        for ha in self.aggregates:
+            if key in ha.metadata:
+                vals.append(ha[key])
+        if len(vals) == 0:
+            return default
+        return aggregation(vals)
 
     def __repr__(self):
         return "<Server " + str(self.__dict__) + "/>"
 
 
-class HostAggregate(list):
+class HostAggregate(object):
     def __init__(self, metadata = {}, hosts = []):
-        list.__init__(self)
         self.metadata = metadata
-        self.extend(hosts)
+        self.hosts = Set()
+        self.update(hosts)
 
-    def append(self, host):
-        list.append(self, host)
-        host.metadata.update(self.metadata)
+    def add(self, host):
+        self.hosts.add(host)
+        host.aggregates.add(self)
 
-    def extend(self, hosts):
+    def update(self, hosts):
         for h in hosts:
-            self.append(h)
+            self.add(h)
 
     def __repr__(self):
         return "<HostAggregate " + str(self.__dict__) + "/>"

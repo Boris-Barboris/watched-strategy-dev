@@ -1,5 +1,3 @@
-#!/usr/bin/python2.7
-
 import pprint
 
 from cloud_mocks import *
@@ -21,15 +19,17 @@ def case_simple1():
     vm1 = Instance('vm1', 8, 4096, {'ha': 'ha1'})
     vm2 = Instance('vm2', 8, 4096)
     vm3 = Instance('vm3', 8, 4096, {'ha': 'ha2'})
-    server1.vms.append(vm1)
-    server2.vms.append(vm2)
-    server3.vms.append(vm3)
+    server1.vms.add(vm1)
+    server2.vms.add(vm2)
+    server3.vms.add(vm3)
     filters = [MetadataSimpleFilter('ha'), RamFilter(), CpuFilter()]
     cluster = [server1, server2, server3]
     consol = strategy.ConsolidationStrategy(filters)
     print 'Initial cluster state:'
     pp.pprint(cluster)
-    result = consol.execute(cluster, None)
+    result = consol.execute(cluster, strategy.ConsolidationGoal('flavor'))
     print 'Resulting cluster state:'
     pp.pprint(result)
+    print 'Migrations:'
+    pp.pprint(consol.migrations)
     print_servers2(cluster, result)

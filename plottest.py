@@ -33,7 +33,7 @@ for i in range(vm_count):
             vcpus = 2 ** (1 + vcpu_powers[i]),
             vram = 2 ** (8 + vmemory_powers[i]))
     vms.append(vm)
-    servers[vm_host_map[i]].vms.append(vm)
+    servers[vm_host_map[i]].vms.add(vm)
 
 pp.pprint(servers)
 print_servers(servers)
