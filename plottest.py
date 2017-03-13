@@ -4,7 +4,7 @@ import pprint
 import numpy as np
 import matplotlib.pyplot as plt
 
-from plot_cloud import print_servers
+from plot_cloud import *
 from cloud_mocks import *
 
 pp = pprint.PrettyPrinter(indent=2)
@@ -37,3 +37,4 @@ for i in range(vm_count):
 
 pp.pprint(servers)
 print_servers(servers)
+#print_servers2(servers, servers)

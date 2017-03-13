@@ -34,7 +34,7 @@ class HostAggregate(list):
 class AvailabilityZone(object):
     def __init__(self, name, aggregate):
         self.host_aggregate = aggregate
-        self.host_aggregate.metadata['az'] = name
+        self.host_aggregate.metadata['availability_zone'] = name
 
     def __repr__(self):
         return "<AvailabilityZone " + str(self.__dict__) + "/>"
