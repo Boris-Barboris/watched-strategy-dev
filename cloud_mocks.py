@@ -12,7 +12,7 @@ class Server(object):
         vals = []
         for ha in self.aggregates:
             if key in ha.metadata:
-                vals.append(ha[key])
+                vals.append(ha.metadata[key])
         if len(vals) == 0:
             return default
         return aggregation(vals)

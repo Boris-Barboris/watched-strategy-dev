@@ -82,19 +82,25 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
 
         # not let's try to offload hosts starting from least loaded one
         donour_i = 0
-        recipient_i = len(result) - 1
-        for donour_i in range(len(result) - 1):
-            for recipient_i in range(len(result) - 1, donour_i, -1):
+        while donour_i < len(result) - 1:
+            recipient_i = len(result) - 1
+            while recipient_i > donour_i:
                 donour = sorted_loads[donour_i][0]
                 recipient = sorted_loads[recipient_i][0]
+                print 'donour ' + str(donour_i) + ' ' + donour.name +\
+                      ' recipient ' + str(recipient_i) + ' ' + recipient.name
                 candidates = []
                 for vm in donour.vms:
                     # TODO: cache filter outputs. Looks like N^3 complexity
                     if self.can_migrate(vm, donour, recipient, result, use_flavor):
                         candidates.append(vm)
+                print 'len of candidates ' + str(len(candidates))
                 best_candidate = self.choose_best_candidate(candidates, donour,
                     recipient, use_flavor)
-                #print 'Chosen instance for migration: ' + repr(best_candidate)
+                if best_candidate:
+                    print 'Chosen instance for migration: ' + best_candidate.name
+                else:
+                    print 'Best candidate not chosen'
                 if best_candidate:
                     # preform migration
                     self.migrate(best_candidate, donour, recipient)
@@ -109,6 +115,10 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
                     # Probably we need more efficient solution
                     donour_i = 0
                     recipient_i = len(result) - 1
+                else:
+                    recipient_i -= 1
+            donour_i += 1
+        # we're gucci
         return result
 
     def choose_best_candidate(self, candidates, source, dest, use_flavor):
@@ -158,9 +168,9 @@ class ConsolidationStrategy(SchedulerAwareStrategy):
     def host_load(self, host, use_flavor = True):
         # get area ratio
         if not use_flavor:
-            cpu_alloc_ratio = self.cpu_allocation_ratio
+            cpu_alloc_ratio = self.cpu_allocation_ratio     # <1 for ceilometer
         else:
-            cpu_alloc_ratio = None
+            cpu_alloc_ratio = None  # filter-based ratio for flavor-consolidation
         cpu_ratio = self.get_host_cpu_util(host, use_flavor, cpu_alloc_ratio)
         ram_ratio = self.get_host_ram_util(host, self.ram_allocation_ratio)
         return {'total': cpu_ratio * ram_ratio,
