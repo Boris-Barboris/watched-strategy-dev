@@ -1,14 +1,20 @@
 #!/usr/bin/python2.7
 
 import sys
-from inspect import getmembers, isfunction
 
-import consolidation_tests
+from consolidation_tests import *
 
-cases = [o for o in getmembers(consolidation_tests, isfunction)]
+cases = [
+    case_simple1,           #0
+    case_uniform_cpu,       #1
+    case_uniform_ram,       #2
+    case_isolated_simple,   #3
+    ]
 
 if len(sys.argv) > 1:
     index = int(sys.argv[1])
 else:
     index = 0
-cases[index][1]()
+func = cases[index]
+print 'running function ' + func.__name__
+func()
